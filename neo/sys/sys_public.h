@@ -295,11 +295,11 @@ void			Sys_ShutdownNetworking( void );
 
 typedef int (*xthread_t)( void * );
 
-struct SDL_Thread;
+struct sthread;
 
 typedef struct {
 	const char		*name;
-	SDL_Thread		*threadHandle;
+	sthread		*threadHandle;
 	unsigned int	threadId;
 } xthreadInfo;
 

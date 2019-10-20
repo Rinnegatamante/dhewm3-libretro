@@ -1,6 +1,10 @@
 ifeq ($(LIBRETRO_COMM_DIR),)
-LIBRETRO_COMM_DIR  = $(CORE_DIR)/code/libretro-common
+LIBRETRO_COMM_DIR  = $(CORE_DIR)/sys/libretro-common
 endif
+INCLUDES   :=  $(LIBRETRO_COMM_DIR)/include
+
+INCFLAGS   := $(foreach dir,$(INCLUDES), -I$(dir))
+
 SRC_RENDERER	:=\
 	renderer/Cinematic.cpp \
 	renderer/GuiModel.cpp \

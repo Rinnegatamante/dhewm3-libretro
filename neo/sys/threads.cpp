@@ -25,19 +25,17 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
-
-#include <SDL_version.h>
-#include <SDL_mutex.h>
-#include <SDL_thread.h>
-#include <SDL_timer.h>
+#include "rthreads/rthreads.h"
+#include "features/features_cpu.h"
+#include "retro_timers.h"
 
 #include "sys/platform.h"
 #include "framework/Common.h"
 
 #include "sys/sys_public.h"
 
-static SDL_mutex	*mutex[MAX_CRITICAL_SECTIONS] = { };
-static SDL_cond		*cond[MAX_TRIGGER_EVENTS] = { };
+static slock_t	*mutex[MAX_CRITICAL_SECTIONS] = { };
+static scond_t		*cond[MAX_TRIGGER_EVENTS] = { };
 static bool			signaled[MAX_TRIGGER_EVENTS] = { };
 static bool			waiting[MAX_TRIGGER_EVENTS] = { };
 
@@ -50,7 +48,7 @@ Sys_Sleep
 ==============
 */
 void Sys_Sleep(int msec) {
-	SDL_Delay(msec);
+	retro_sleep(msec);
 }
 
 /*
@@ -59,7 +57,17 @@ Sys_Milliseconds
 ================
 */
 unsigned int Sys_Milliseconds() {
-	return SDL_GetTicks();
+	static uint64_t	base;
+
+	uint64_t time = cpu_features_get_time_usec() / 1000;
+	
+    if (!base) {
+		base = time;
+    }
+
+    unsigned int curtime = (unsigned int)(time - base);
+
+    return curtime;
 }
 
 /*
@@ -70,7 +78,7 @@ Sys_InitThreads
 void Sys_InitThreads() {
 	// critical sections
 	for (int i = 0; i < MAX_CRITICAL_SECTIONS; i++) {
-		mutex[i] = SDL_CreateMutex();
+		mutex[i] = slock_new();
 
 		if (!mutex[i]) {
 			Sys_Printf("ERROR: SDL_CreateMutex failed\n");
@@ -80,7 +88,7 @@ void Sys_InitThreads() {
 
 	// events
 	for (int i = 0; i < MAX_TRIGGER_EVENTS; i++) {
-		cond[i] = SDL_CreateCond();
+		cond[i] = scond_new();
 
 		if (!cond[i]) {
 			Sys_Printf("ERROR: SDL_CreateCond failed\n");
@@ -110,17 +118,12 @@ void Sys_ShutdownThreads() {
 			continue;
 
 		Sys_Printf("WARNING: Thread '%s' still running\n", thread[i]->name);
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-		// TODO no equivalent in SDL2
-#else
-		SDL_KillThread(thread[i]->threadHandle);
-#endif
 		thread[i] = NULL;
 	}
 
 	// events
 	for (int i = 0; i < MAX_TRIGGER_EVENTS; i++) {
-		SDL_DestroyCond(cond[i]);
+		scond_free(cond[i]);
 		cond[i] = NULL;
 		signaled[i] = false;
 		waiting[i] = false;
@@ -128,7 +131,7 @@ void Sys_ShutdownThreads() {
 
 	// critical sections
 	for (int i = 0; i < MAX_CRITICAL_SECTIONS; i++) {
-		SDL_DestroyMutex(mutex[i]);
+		slock_free(mutex[i]);
 		mutex[i] = NULL;
 	}
 }
@@ -141,8 +144,7 @@ Sys_EnterCriticalSection
 void Sys_EnterCriticalSection(int index) {
 	assert(index >= 0 && index < MAX_CRITICAL_SECTIONS);
 
-	if (SDL_LockMutex(mutex[index]) != 0)
-		common->Error("ERROR: SDL_LockMutex failed\n");
+	slock_lock(mutex[index]);
 }
 
 /*
@@ -153,8 +155,7 @@ Sys_LeaveCriticalSection
 void Sys_LeaveCriticalSection(int index) {
 	assert(index >= 0 && index < MAX_CRITICAL_SECTIONS);
 
-	if (SDL_UnlockMutex(mutex[index]) != 0)
-		common->Error("ERROR: SDL_UnlockMutex failed\n");
+	slock_unlock(mutex[index]);
 }
 
 /*
@@ -186,8 +187,7 @@ void Sys_WaitForEvent(int index) {
 		signaled[index] = false;
 	} else {
 		waiting[index] = true;
-		if (SDL_CondWait(cond[index], mutex[CRITICAL_SECTION_SYS]) != 0)
-			common->Error("ERROR: SDL_CondWait failed\n");
+		scond_wait(cond[index], mutex[CRITICAL_SECTION_SYS]);
 		waiting[index] = false;
 	}
 
@@ -205,8 +205,7 @@ void Sys_TriggerEvent(int index) {
 	Sys_EnterCriticalSection(CRITICAL_SECTION_SYS);
 
 	if (waiting[index]) {
-		if (SDL_CondSignal(cond[index]) != 0)
-			common->Error("ERROR: SDL_CondSignal failed\n");
+		scond_signal(cond[index]);
 	} else {
 		// emulate windows behaviour: if no thread is waiting, leave the signal on so next wait keeps going
 		signaled[index] = true;
@@ -220,14 +219,11 @@ void Sys_TriggerEvent(int index) {
 Sys_CreateThread
 ==================
 */
+int thid = 1;
 void Sys_CreateThread(xthread_t function, void *parms, xthreadInfo& info, const char *name) {
 	Sys_EnterCriticalSection();
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_Thread *t = SDL_CreateThread(function, name, parms);
-#else
-	SDL_Thread *t = SDL_CreateThread(function, parms);
-#endif
+	sthread_t *t = sthread_create(function, parms);
 
 	if (!t) {
 		common->Error("ERROR: SDL_thread for '%s' failed\n", name);
@@ -237,7 +233,7 @@ void Sys_CreateThread(xthread_t function, void *parms, xthreadInfo& info, const 
 
 	info.name = name;
 	info.threadHandle = t;
-	info.threadId = SDL_GetThreadID(t);
+	info.threadId = t->id;
 
 	if (thread_count < MAX_THREADS)
 		thread[thread_count++] = &info;
@@ -255,8 +251,8 @@ Sys_DestroyThread
 void Sys_DestroyThread(xthreadInfo& info) {
 	assert(info.threadHandle);
 
-	SDL_WaitThread(info.threadHandle, NULL);
-
+	sthread_join(info.threadHandle);
+	
 	info.name = NULL;
 	info.threadHandle = NULL;
 	info.threadId = 0;

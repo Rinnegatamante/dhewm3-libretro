@@ -5,6 +5,7 @@
 .cproject
 .project
 .settings/
+*.o
 
 /dhewm*
 /*-releases/

@@ -233,7 +233,7 @@ void Sys_CreateThread(xthread_t function, void *parms, xthreadInfo& info, const 
 
 	info.name = name;
 	info.threadHandle = t;
-	info.threadId = t->id;
+	info.threadId = sthread_get_thread_id(t);
 
 	if (thread_count < MAX_THREADS)
 		thread[thread_count++] = &info;
@@ -288,7 +288,7 @@ const char *Sys_GetThreadName(int *index) {
 
 	Sys_EnterCriticalSection();
 
-	unsigned int id = SDL_ThreadID();
+	unsigned int id = sthread_get_current_thread_id();
 
 	for (int i = 0; i < thread_count; i++) {
 		if (id == thread[i]->threadId) {

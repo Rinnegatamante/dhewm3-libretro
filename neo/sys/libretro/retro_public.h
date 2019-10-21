@@ -26,24 +26,12 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#ifndef __SYS_NX__
-#define __SYS_NX__
+#ifndef __SYS_LIBRETRO__
+#define __SYS_LIBRETRO__
 
-#include <switch.h>
 #include <signal.h>
 
 #include "sys/sys_public.h"
-
-const char*	NX_Cwd( void );
-
-void		NX_Exit( int ret );
-void		NX_SetExit(int ret); // override the exit code
-void		NX_SetExitSpawn( const char *exeName ); // set the process to be spawned when we quit
-
-void		NX_InitConsoleInput( void );
-void		NX_Shutdown( void );
-
-void		NX_UpdateOverclock(void);
 
 void		Sys_DoStartProcess( const char *exeName, bool dofork = true ); // if not forking, current process gets replaced
 

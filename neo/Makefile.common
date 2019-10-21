@@ -230,9 +230,9 @@ SRC_SYS	:=\
 	sys/cpu.cpp \
 	sys/sys_local.cpp \
 	sys/threads.cpp \
-	sys/libretro/nx_events.cpp \
-	sys/libretro/nx_net.cpp \
-	sys/libretro/nx_main.cpp \
+	sys/libretro/retro_events.cpp \
+	sys/libretro/retro_net.cpp \
+	sys/libretro/retro_main.cpp \
 	sys/libretro/main.cpp
 
 SRC_SYS_CORE	:= sys/glimp.cpp

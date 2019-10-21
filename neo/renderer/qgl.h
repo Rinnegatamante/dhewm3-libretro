@@ -46,7 +46,8 @@ If you have questions concerning this license or the applicable additional terms
 #include <EGL/egl.h>
 #include "glad41/glad.h"
 #else
-#include <SDL_opengl.h>
+#include <GL/gl.h>
+#include "glsym/glsym.h"
 #endif
 
 #if defined( ID_DEDICATED ) && defined( _WIN32 )

@@ -233,7 +233,7 @@ SRC_SYS	:=\
 	sys/libretro/retro_events.cpp \
 	sys/libretro/retro_net.cpp \
 	sys/libretro/retro_main.cpp \
-	sys/libretro/main.cpp
+	sys/libretro/libretro.cpp
 
 SRC_SYS_CORE	:= sys/glimp.cpp
 

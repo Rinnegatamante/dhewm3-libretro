@@ -26,7 +26,6 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <switch.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -42,6 +41,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "sys/sys_local.h"
 
 #include "sys/libretro/retro_public.h"
+#include "../libretro-common/include/file/file_path.h"
 
 #define					COMMAND_HISTORY 64
 
@@ -69,72 +69,12 @@ idCVar com_pid( "com_pid", "0", CVAR_INTEGER | CVAR_INIT | CVAR_SYSTEM, "process
 static int set_exit = 0;
 static char exit_spawn[ 1024 ] = { 0 };
 
-// overclock mode stuff
-
-idCVar nx_overclock(
-	"nx_overclock", "0", CVAR_INTEGER | CVAR_SYSTEM | CVAR_ARCHIVE,
-	"Switch overclock level: 0 - none, 1 - low, 2 - med, 3 - max"
-);
-
-static bool clock_changed = false;
-static u32 old_clock_gpu, old_clock_cpu, old_clock_emc;
-static constexpr u32 oc_clock_cpu[] = { 1224000000, 1683000000, 1785000000 };
-static constexpr u32 oc_clock_gpu[] = { 691200000, 768000000, 768000000 };
-static constexpr u32 oc_clock_emc[] = { 1600000000, 1600000000, 1600000000 };
-
-/*
-================
-NX_UpdateOverclock
-================
-*/
-static inline void NX_ClearOverclock(void) {
-	if (clock_changed) {
-		// set old clocks
-		pcvSetClockRate(PcvModule_CpuBus, old_clock_cpu);
-		pcvSetClockRate(PcvModule_GPU, old_clock_gpu);
-		pcvSetClockRate(PcvModule_EMC, old_clock_emc);
-		clock_changed = false;
-	}
-}
-
-static inline void NX_SetOverclock(int oclevel) {
-	common->Printf( "NX_SetOverclock(%d): setting clocks to %u / %u / %u\n",
-		oclevel,
-		oc_clock_cpu[oclevel],
-		oc_clock_gpu[oclevel],
-		oc_clock_emc[oclevel]
-	);
-	// preserve old clocks to turn shit back off later
-	pcvGetClockRate(PcvModule_CpuBus, &old_clock_cpu);
-	pcvGetClockRate(PcvModule_GPU, &old_clock_gpu);
-	pcvGetClockRate(PcvModule_EMC, &old_clock_emc);
-	// set OC clocks
-	pcvSetClockRate(PcvModule_CpuBus, oc_clock_cpu[oclevel]);
-	pcvSetClockRate(PcvModule_GPU, oc_clock_gpu[oclevel]);
-	pcvSetClockRate(PcvModule_EMC, oc_clock_emc[oclevel]);
-	clock_changed = true;
-}
-
-void NX_UpdateOverclock(void) {
-	// get the cvar
-	int oclevel = cvarSystem->GetCVarInteger( "nx_overclock" ) - 1;
-	if (oclevel >= 0 && oclevel < 3)
-		NX_SetOverclock(oclevel);
-	else
-		NX_ClearOverclock();
-}
-
 /*
 ================
 NX_Exit
 ================
 */
-void NX_Exit(int ret) {
-	// clock back to old values, just in case
-	NX_ClearOverclock();
-	pcvExit();
-	socketExit();
-	appletUnlockExit();
+void LibRetro_Exit(int ret) {
 	// in case of signal, handler tries a common->Quit
 	// we use set_exit to maintain a correct exit code
 	if ( set_exit ) {
@@ -148,7 +88,7 @@ void NX_Exit(int ret) {
 NX_SetExit
 ================
 */
-void NX_SetExit(int ret) {
+void LibRetro_SetExit(int ret) {
 	set_exit = 0;
 }
 
@@ -158,7 +98,7 @@ NX_SetExitSpawn
 set the process to be spawned when we quit
 ===============
 */
-void NX_SetExitSpawn( const char *exeName ) {
+void LibRetro_SetExitSpawn( const char *exeName ) {
 	idStr::Copynz( exit_spawn, exeName, 1024 );
 }
 
@@ -174,7 +114,7 @@ NOTE: might even want to add a small delay?
 void idSysLocal::StartProcess( const char *exeName, bool quit ) {
 	if ( quit ) {
 		common->DPrintf( "Sys_StartProcess %s (delaying until final exit)\n", exeName );
-		NX_SetExitSpawn( exeName );
+		LibRetro_SetExitSpawn( exeName );
 		cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "quit\n" );
 		return;
 	}
@@ -189,7 +129,7 @@ Sys_Quit
 ================
 */
 void Sys_Quit(void) {
-	NX_Exit( EXIT_SUCCESS );
+	LibRetro_Exit( EXIT_SUCCESS );
 }
 
 /*
@@ -198,7 +138,7 @@ Sys_Mkdir
 ================
 */
 void Sys_Mkdir( const char *path ) {
-	mkdir(path, 0777);
+	path_mkdir(path);
 }
 
 /*
@@ -269,7 +209,7 @@ int Sys_ListFiles( const char *directory, const char *extension, idStrList &list
 NX_Cwd
 ================
 */
-const char *NX_Cwd( void ) {
+const char *Libretro_Cwd( void ) {
 	static char cwd[MAX_OSPATH];
 
 	if (getcwd( cwd, sizeof( cwd ) - 1 ))
@@ -286,8 +226,6 @@ Sys_Init
 =================
 */
 void Sys_Init( void ) {
-	
-	NX_InitConsoleInput();
 	com_pid.SetInteger( getpid() );
 	common->Printf( "pid: %d\n", com_pid.GetInteger() );
 	common->Printf( "%d MB System Memory\n", Sys_GetSystemRam() );
@@ -298,7 +236,7 @@ void Sys_Init( void ) {
 NX_Shutdown
 =================
 */
-void NX_Shutdown( void ) {
+void Libretro_Shutdown( void ) {
 	for ( int i = 0; i < COMMAND_HISTORY; i++ ) {
 		history[ i ].Clear();
 	}
@@ -460,5 +398,5 @@ void Sys_Error(const char *error, ...) {
 	va_end( argptr );
 	Sys_Printf( "\n" );
 
-	NX_Exit( EXIT_FAILURE );
+	LibRetro_Exit( EXIT_FAILURE );
 }

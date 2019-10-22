@@ -226,6 +226,7 @@ Sys_Init
 =================
 */
 void Sys_Init( void ) {
+	LibRetro_InitConsoleInput();
 	com_pid.SetInteger( getpid() );
 	common->Printf( "pid: %d\n", com_pid.GetInteger() );
 	common->Printf( "%d MB System Memory\n", Sys_GetSystemRam() );
@@ -236,7 +237,7 @@ void Sys_Init( void ) {
 NX_Shutdown
 =================
 */
-void Libretro_Shutdown( void ) {
+void LibRetro_Shutdown( void ) {
 	for ( int i = 0; i < COMMAND_HISTORY; i++ ) {
 		history[ i ].Clear();
 	}
@@ -339,7 +340,7 @@ int Sys_GetDriveFreeSpace( const char *path ) {
 NX_InitConsoleInput
 ===============
 */
-void NX_InitConsoleInput( void ) {
+void LibRetro_InitConsoleInput( void ) {
 	common->StartupVariable( "in_tty", false );
 }
 

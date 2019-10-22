@@ -35,4 +35,13 @@ If you have questions concerning this license or the applicable additional terms
 
 void		Sys_DoStartProcess( const char *exeName, bool dofork = true ); // if not forking, current process gets replaced
 
+const char*	LibRetro_Cwd( void );
+
+void		LibRetro_Exit( int ret );
+void		LibRetro_SetExit(int ret); // override the exit code
+void		LibRetro_SetExitSpawn( const char *exeName ); // set the process to be spawned when we quit
+
+void		LibRetro_InitConsoleInput( void );
+void		LibRetro_Shutdown( void );
+
 #endif

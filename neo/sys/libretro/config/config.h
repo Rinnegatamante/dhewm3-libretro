@@ -7,6 +7,6 @@
 #define BUILD_LIBRARY_SUFFIX	".dll"
 
 #define BUILD_LIBDIR			"."
-#define BUILD_DATADIR			"."
+extern char *BUILD_DATADIR;
 
 #endif

@@ -82,6 +82,8 @@ int scr_width = 1920, scr_height = 1080;
 
 char g_rom_dir[1024], g_pak_path[1024], g_save_dir[1024];
 
+char *BUILD_DATADIR;
+
 static struct retro_hw_render_callback hw_render;
 
 static retro_log_printf_t log_cb;
@@ -481,6 +483,7 @@ bool retro_load_game(const struct retro_game_info *info)
 	
 
 	extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
+	BUILD_DATADIR = g_rom_dir;
 	
 	return true;
 }

@@ -26,7 +26,9 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <SDL.h>
+#include <features/features_cpu.h>
+#include <rthreads/rthreads.h>
+#include <retro_timers.h>
 
 #include "sys/platform.h"
 #include "idlib/containers/HashTable.h"
@@ -234,7 +236,7 @@ private:
 	idCompressor *				config_compressor;
 #endif
 
-	SDL_TimerID					async_timer;
+	sthread_t *				async_timer;
 };
 
 idCommonLocal	commonLocal;
@@ -262,7 +264,7 @@ idCommonLocal::idCommonLocal( void ) {
 	config_compressor = NULL;
 #endif
 
-	async_timer = 0;
+	async_timer = NULL;
 }
 
 /*
@@ -2747,18 +2749,12 @@ void idCommonLocal::SetMachineSpec( void ) {
 	}
 }
 
-static unsigned int AsyncTimer(unsigned int interval, void *) {
-	common->Async();
-	Sys_TriggerEvent(TRIGGER_EVENT_ONE);
-
-	// calculate the next interval to get as close to 60fps as possible
-	unsigned int now = SDL_GetTicks();
-	unsigned int tick = com_ticNumber * USERCMD_MSEC;
-
-	if (now >= tick)
-		return 1;
-
-	return tick - now;
+void AsyncTimer(void *) {
+	for (;;){
+		retro_sleep(USERCMD_MSEC);
+		common->Async();
+		Sys_TriggerEvent(TRIGGER_EVENT_ONE);
+	}
 }
 
 #ifdef _WIN32
@@ -2853,21 +2849,6 @@ void idCommonLocal::Init( int argc, char **argv ) {
 		exit(1);
 	}
 
-#ifdef ID_DEDICATED
-	// we want to use the SDL event queue for dedicated servers. That
-	// requires video to be initialized, so we just use the dummy
-	// driver for headless boxen
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
-#else
-	char dummy[] = "SDL_VIDEODRIVER=dummy\0";
-	SDL_putenv(dummy);
-#endif
-#endif
-
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK)) // init joystick to work around SDL 2.0.9 bug #4391
-		Sys_Error("Error while initializing SDL: %s", SDL_GetError());
-
 	Sys_InitThreads();
 
 	try {
@@ -2898,16 +2879,6 @@ void idCommonLocal::Init( int argc, char **argv ) {
 
 		// register all static CVars
 		idCVar::RegisterStaticVars();
-
-		// print engine version
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-		SDL_version sdlv;
-		SDL_GetVersion(&sdlv);
-#else
-		SDL_version sdlv = *SDL_Linked_Version();
-#endif
-		Printf( "%s using SDL v%u.%u.%u\n",
-				version.string, sdlv.major, sdlv.minor, sdlv.patch );
 
 		// initialize key input/binding, done early so bind command exists
 		idKeyInput::Init();
@@ -2971,11 +2942,9 @@ void idCommonLocal::Init( int argc, char **argv ) {
 	catch( idException & ) {
 		Sys_Error( "Error during initialization" );
 	}
-
-	async_timer = SDL_AddTimer(USERCMD_MSEC, AsyncTimer, NULL);
-
-	if (!async_timer)
-		Sys_Error("Error while starting the async timer: %s", SDL_GetError());
+	
+	
+	async_timer = sthread_create(AsyncTimer, NULL);
 }
 
 
@@ -2986,8 +2955,8 @@ idCommonLocal::Shutdown
 */
 void idCommonLocal::Shutdown( void ) {
 	if (async_timer) {
-		SDL_RemoveTimer(async_timer);
-		async_timer = 0;
+		sthread_detach(async_timer);
+		async_timer = NULL;
 	}
 
 	idAsyncNetwork::server.Kill();
@@ -3034,8 +3003,6 @@ void idCommonLocal::Shutdown( void ) {
 	idLib::ShutDown();
 
 	Sys_ShutdownThreads();
-
-	SDL_Quit();
 }
 
 /*

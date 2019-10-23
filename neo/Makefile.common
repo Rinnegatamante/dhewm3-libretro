@@ -403,7 +403,8 @@ SRC_LIBRETRO := \
 SOURCES_DIR = \
 	$(CORE_DIR)/jpeg-8c \
 	$(CORE_DIR)/libvorbis/lib \
-	$(CORE_DIR)/libogg/src
+	$(CORE_DIR)/libogg/src \
+	$(CORE_DIR)/zlib
 	
 DIRS_C  := $(foreach dir,$(SOURCES_DIR), $(wildcard $(dir)/*.c))
 

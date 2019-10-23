@@ -398,7 +398,8 @@ SRC_LIBRETRO := \
 	$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
 	$(LIBRETRO_COMM_DIR)/net/net_compat.c \
 	$(LIBRETRO_COMM_DIR)/net/net_socket.c \
-	$(LIBRETRO_COMM_DIR)/glsym/rglgen.c
+	$(LIBRETRO_COMM_DIR)/glsym/rglgen.c \
+	$(LIBRETRO_COMM_DIR)/glsym/glsym_gl.c
 
 SOURCES_DIR = \
 	$(CORE_DIR)/jpeg-8c \
@@ -428,7 +429,8 @@ SOURCES_CPP	:=\
 	$(SRC_UI) \
 	$(SRC_TOOLS) \
 	$(SRC_IDLIB) \
-	$(SRC_GAME)
+	$(SRC_GAME) \
+	$(SRC_OPENAL_STUB)
 
 SOURCES_C	:=\
 	framework/minizip/ioapi.c \

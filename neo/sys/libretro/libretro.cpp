@@ -76,6 +76,9 @@ static unsigned audio_buffer_ptr;
 static int16_t audio_buffer[BUFFER_SIZE];
 
 bool first_boot = true;
+int invert_y_axis = 1;
+
+bool initial_resolution_set = false;
 
 int framerate = 60;
 int scr_width = 1920, scr_height = 1080;
@@ -89,7 +92,7 @@ static struct retro_hw_render_callback hw_render;
 static retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
 static retro_audio_sample_t audio_cb;
-static retro_audio_sample_batch_t audio_batch_cb;
+retro_audio_sample_batch_t audio_batch_cb;
 retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
@@ -212,6 +215,78 @@ gp_layout_t classic_alt = {
       { 0 },
    },
 };
+
+static void update_variables(bool startup)
+{
+	struct retro_variable var;
+	
+	var.key = "doom_framerate";
+	var.value = NULL;
+	
+	if (startup)
+	{
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+		{
+			if (!strcmp(var.value, "auto"))
+			{
+				float target_framerate = 0.0f;
+				if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE, &target_framerate))
+					target_framerate = 60.0f;
+				framerate = (unsigned)target_framerate;
+			}
+			else
+				framerate = atoi(var.value);
+		}
+		else
+			framerate    = 60;
+	}
+	
+	var.key = "doom_resolution";
+	var.value = NULL;
+	
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
+	{
+		char *pch;
+		char str[100];
+		snprintf(str, sizeof(str), "%s", var.value);
+
+		pch = strtok(str, "x");
+		if (pch)
+			scr_width = strtoul(pch, NULL, 0);
+		pch = strtok(NULL, "x");
+		if (pch)
+			scr_height = strtoul(pch, NULL, 0);
+
+		if (log_cb)
+			log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", scr_width, scr_height);
+
+		initial_resolution_set = true;
+	}
+   
+	var.key = "doom_invert_y_axis";
+	var.value = NULL;
+
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		if (strcmp(var.value, "disabled") == 0)
+			invert_y_axis = 1;
+		else
+			invert_y_axis = -1;
+	}
+	
+	// We need setup sequence to be finished to change Cvar values
+	if (!startup) {
+		var.key = "doom_fps";
+		var.value = NULL;
+
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			extern idCVar com_showFPS;
+			com_showFPS.SetBool(strcmp(var.value, "disabled"));
+		}
+		
+	}
+}
 
 static void keyboard_cb(bool down, unsigned keycode, uint32_t character, uint16_t mod)
 {
@@ -571,7 +646,7 @@ void Sys_SetMouse() {
 	// Right stick Look
 	rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
 		RETRO_DEVICE_ID_ANALOG_X);
-	rsy = /*invert_y_axis **/ input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+	rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
 		RETRO_DEVICE_ID_ANALOG_Y);
 			   
 	if (rsx > analog_deadzone || rsx < -analog_deadzone) {
@@ -656,6 +731,8 @@ bool retro_load_game(const struct retro_game_info *info)
 		path_lower[i] = tolower(path_lower[i]);
 	
 //	environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
+
+	update_variables(true);
 	
 	extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 	
@@ -717,7 +794,12 @@ void retro_run(void)
 		network_init();
 		common->Init( fake_argc, fake_argv );
 		first_boot = false;
+		update_variables(false);
 	}
+	
+	bool updated = false;
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+		update_variables(false);
 
 	common->Frame();
 	

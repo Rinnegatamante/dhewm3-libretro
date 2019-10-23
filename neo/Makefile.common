@@ -1,7 +1,8 @@
 ifeq ($(LIBRETRO_COMM_DIR),)
 LIBRETRO_COMM_DIR  = $(CORE_DIR)/sys/libretro-common
 endif
-INCLUDES   :=  $(LIBRETRO_COMM_DIR)/include
+INCLUDES   :=  $(LIBRETRO_COMM_DIR)/include \
+	$(CORE_DIR)/libvorbis/lib
 
 INCFLAGS   := $(foreach dir,$(INCLUDES), -I$(dir))
 
@@ -399,7 +400,11 @@ SRC_LIBRETRO := \
 	$(LIBRETRO_COMM_DIR)/net/net_socket.c \
 	$(LIBRETRO_COMM_DIR)/glsym/rglgen.c
 
-SOURCES_DIR = $(CORE_DIR)/jpeg-8c
+SOURCES_DIR = \
+	$(CORE_DIR)/jpeg-8c \
+	$(CORE_DIR)/libvorbis/lib \
+	$(CORE_DIR)/libogg/src
+	
 DIRS_C  := $(foreach dir,$(SOURCES_DIR), $(wildcard $(dir)/*.c))
 
 ifeq ($(D3XP),ON)

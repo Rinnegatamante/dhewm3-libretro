@@ -391,7 +391,7 @@ public:
 	static void				TouchFileList_f( const idCmdArgs &args );
 
 private:
-	friend int				BackgroundDownloadThread( void *pexit );
+	friend void				BackgroundDownloadThread( void *pexit );
 
 	searchpath_t *			searchPaths;
 	int						readCount;			// total bytes read
@@ -3407,7 +3407,7 @@ BackgroundDownload
 Reads part of a file from a background thread.
 ===================
 */
-int BackgroundDownloadThread( void *pexit ) {
+void BackgroundDownloadThread( void *pexit ) {
 	bool *exit = (bool *)pexit;
 
 	while (!(*exit)) {
@@ -3522,7 +3522,7 @@ int BackgroundDownloadThread( void *pexit ) {
 #endif
 		}
 	}
-	return 0;
+	return;
 }
 
 /*

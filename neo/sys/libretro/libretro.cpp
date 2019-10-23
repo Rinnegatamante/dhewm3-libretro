@@ -77,7 +77,7 @@ static int16_t audio_buffer[BUFFER_SIZE];
 
 bool first_boot = true;
 
-int framerate = 165;
+int framerate = 60;
 int scr_width = 1920, scr_height = 1080;
 
 char g_rom_dir[1024], g_pak_path[1024], g_save_dir[1024];
@@ -500,8 +500,6 @@ GLExtension_t GLimp_ExtensionPointer(const char *name) {
 
 void retro_run(void)
 {
-	glBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
-	
 	if (first_boot) {
 		network_init();
 		common->Init( fake_argc, fake_argv );
@@ -509,7 +507,18 @@ void retro_run(void)
 
 	common->Frame();
 	
+	audio_process();
+	audio_callback();
+}
+
+/*
+===================
+GLimp_SwapBuffers
+===================
+*/
+void GLimp_SwapBuffers() {
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, scr_width, scr_height, 0);
+	glBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
 }
 
 void retro_cheat_reset(void)

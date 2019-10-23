@@ -152,14 +152,6 @@ void GLimp_Shutdown() {
 }
 
 /*
-===================
-GLimp_SwapBuffers
-===================
-*/
-void GLimp_SwapBuffers() {
-}
-
-/*
 =================
 GLimp_SetGamma
 =================

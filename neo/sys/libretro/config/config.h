@@ -9,6 +9,4 @@
 #define BUILD_LIBDIR			"."
 #define BUILD_DATADIR			"."
 
-#define ID_ENABLE_CURL
-
 #endif

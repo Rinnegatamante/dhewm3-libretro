@@ -293,7 +293,7 @@ void			Sys_ShutdownNetworking( void );
 ==============================================================
 */
 
-typedef int (*xthread_t)( void * );
+typedef void (*xthread_t)( void * );
 
 struct sthread;
 

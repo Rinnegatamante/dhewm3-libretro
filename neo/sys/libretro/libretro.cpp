@@ -379,6 +379,219 @@ static void audio_process(void)
 {
 }
 
+#define LANALOG_LEFT  0x01
+#define LANALOG_RIGHT 0x02
+#define LANALOG_UP    0x04
+#define LANALOG_DOWN  0x08
+#include "framework/KeyInput.h"
+extern void Key_Event(int button, int val);
+extern void Mouse_Event(int x, int y);
+uint32_t oldanalogs;
+int16_t old_ret;
+void Sys_SetKeys(){
+	int port;
+	uint32_t virt_buttons = 0x00;
+	
+	if (!poll_cb)
+		return;
+
+	poll_cb();
+
+	if (!input_cb)
+		return;
+
+	for (port = 0; port < MAX_PADS; port++)
+	{
+		if (!input_cb)
+			break;
+
+		switch (doom_devices[port])
+		{
+		case RETRO_DEVICE_JOYPAD:
+		case RETRO_DEVICE_JOYPAD_ALT:
+		case RETRO_DEVICE_MODERN:
+		{
+			unsigned i;
+			int16_t ret    = 0;
+			if (libretro_supports_bitmasks)
+				ret = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+			else
+			{
+				for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
+				{
+					if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
+						ret |= (1 << i);
+				}
+			}
+
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_UP)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_UP)))
+				Key_Event(K_UPARROW, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_UP)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_UP)))
+				Key_Event(K_UPARROW, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)))
+				Key_Event(K_DOWNARROW, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)))
+				Key_Event(K_DOWNARROW, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)))
+				Key_Event(K_LEFTARROW, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)))
+				Key_Event(K_LEFTARROW, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)))
+				Key_Event(K_RIGHTARROW, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)))
+				Key_Event(K_RIGHTARROW, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_START)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_START)))
+				Key_Event(K_ESCAPE, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_START)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_START)))
+				Key_Event(K_ESCAPE, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_SELECT)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_SELECT)))
+				Key_Event(K_TAB, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_SELECT)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_SELECT)))
+				Key_Event(K_TAB, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_Y)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_Y)))
+				Key_Event(K_CTRL, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_Y)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_Y)))
+				Key_Event(K_CTRL, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_X)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_X)))
+				Key_Event(K_ALT, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_X)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_X)))
+				Key_Event(K_ALT, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_B)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_B)))
+				Key_Event(K_BACKSPACE, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_B)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_B)))
+				Key_Event(K_BACKSPACE, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_A)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_A)))
+				Key_Event(K_ENTER, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_A)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_A)))
+				Key_Event(K_ENTER, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_L)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_L)))
+				Key_Event(K_MOUSE2, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_L)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_L)))
+				Key_Event(K_MOUSE2, 0);
+			if ((ret & (1 << RETRO_DEVICE_ID_JOYPAD_R)) && !(old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_R)))
+				Key_Event(K_MOUSE1, 1);
+			else if (!(ret & (1 << RETRO_DEVICE_ID_JOYPAD_R)) && (old_ret & (1 << RETRO_DEVICE_ID_JOYPAD_R)))
+				Key_Event(K_MOUSE1, 0);
+			
+			int lsx, lsy;
+			lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+               RETRO_DEVICE_ID_ANALOG_X);
+			lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+               RETRO_DEVICE_ID_ANALOG_Y);
+
+			if (lsx > analog_deadzone || lsx < -analog_deadzone) {
+				if (lsx > analog_deadzone)
+					virt_buttons += LANALOG_RIGHT;
+				if (lsx < -analog_deadzone)
+					virt_buttons += LANALOG_LEFT;
+			}
+	  
+			if (lsy > analog_deadzone || lsy < -analog_deadzone) {
+				if (lsy > analog_deadzone)
+					virt_buttons += LANALOG_UP;
+				if (lsy < -analog_deadzone)
+					virt_buttons += LANALOG_DOWN;
+			}
+			
+			if (virt_buttons != oldanalogs){
+				if((virt_buttons & LANALOG_LEFT) != (oldanalogs & LANALOG_LEFT))
+					Key_Event(K_AUX7, (virt_buttons & LANALOG_LEFT) == LANALOG_LEFT);
+				if((virt_buttons & LANALOG_RIGHT) != (oldanalogs & LANALOG_RIGHT))
+					Key_Event(K_AUX8, (virt_buttons & LANALOG_RIGHT) == LANALOG_RIGHT);
+				if((virt_buttons & LANALOG_UP) != (oldanalogs & LANALOG_UP))
+					Key_Event(K_AUX10, (virt_buttons & LANALOG_UP) == LANALOG_UP);
+				if((virt_buttons & LANALOG_DOWN) != (oldanalogs & LANALOG_DOWN))
+					Key_Event(K_AUX9, (virt_buttons & LANALOG_DOWN) == LANALOG_DOWN);
+			}
+			
+			oldanalogs = virt_buttons;
+			old_ret = ret;
+		}
+		break;
+		/*
+		case RETRO_DEVICE_KEYBOARD:
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT))
+				Sys_SetKeys(K_MOUSE1, 1);
+			else
+				Sys_SetKeys(K_MOUSE1, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT))
+				Sys_SetKeys(K_MOUSE2, 1);
+			else
+				Sys_SetKeys(K_MOUSE2, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE))
+				Sys_SetKeys(K_MOUSE3, 1);
+			else
+				Sys_SetKeys(K_MOUSE3, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELUP))
+				Sys_SetKeys(K_MOUSE4, 1);
+			else
+				Sys_SetKeys(K_MOUSE4, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELDOWN))
+				Sys_SetKeys(K_MOUSE5, 1);
+			else
+				Sys_SetKeys(K_MOUSE5, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELUP))
+				Sys_SetKeys(K_MOUSE6, 1);
+			else
+				Sys_SetKeys(K_MOUSE6, 0);
+			if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELDOWN))
+				Sys_SetKeys(K_MOUSE7, 1);
+			else
+				Sys_SetKeys(K_MOUSE7, 0);
+			if (quake_devices[0] == RETRO_DEVICE_KEYBOARD) {
+				if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
+					Sys_SetKeys(K_UPARROW, 1);
+				else
+					Sys_SetKeys(K_UPARROW, 0);
+				if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
+					Sys_SetKeys(K_DOWNARROW, 1);
+				else
+					Sys_SetKeys(K_DOWNARROW, 0);
+				if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
+					Sys_SetKeys(K_LEFTARROW, 1);
+				else
+					Sys_SetKeys(K_LEFTARROW, 0);
+				if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
+					Sys_SetKeys(K_RIGHTARROW, 1);
+				else
+					Sys_SetKeys(K_RIGHTARROW, 0);
+			}
+			break;
+		*/
+		case RETRO_DEVICE_NONE:
+			break;
+		}
+	}
+}
+
+void Sys_SetMouse() {
+	int rsx, rsy;
+	int slowdown = 1024 * (framerate / 60.0f);
+	
+	// Right stick Look
+	rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+		RETRO_DEVICE_ID_ANALOG_X);
+	rsy = /*invert_y_axis **/ input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+		RETRO_DEVICE_ID_ANALOG_Y);
+			   
+	if (rsx > analog_deadzone || rsx < -analog_deadzone) {
+		if (rsx > analog_deadzone)
+			rsx = rsx - analog_deadzone;
+		if (rsx < -analog_deadzone)
+			rsx = rsx + analog_deadzone;
+		
+	} else rsx = 0;
+	if (rsy > analog_deadzone || rsy < -analog_deadzone) {
+		if (rsy > analog_deadzone)
+			rsy = rsy - analog_deadzone;
+		if (rsy < -analog_deadzone)
+			rsy = rsy + analog_deadzone;
+	} else rsy = 0;
+	
+	Mouse_Event(rsx /slowdown, rsy /slowdown);
+	
+}
+
 static void audio_callback(void)
 {
 	unsigned read_first, read_second;

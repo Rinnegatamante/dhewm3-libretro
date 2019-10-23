@@ -324,6 +324,35 @@ void Sys_GrabMouseCursor(bool grabIt) {
 	GLimp_GrabInput(flags);
 }
 
+extern void Sys_SetKeys();
+extern void Sys_SetMouse();
+struct simulated {
+	int key;
+	int val;
+};
+
+struct simulated2 {
+	int x;
+	int y;
+};
+
+simulated skeys[32];
+simulated2 smouse[32];
+uint8_t snum = 0;
+uint8_t snum2 = 0;
+
+void Key_Event(int key, int val) {
+	skeys[snum].key = key;
+	skeys[snum].val = val;
+	snum++;
+}
+
+void Mouse_Event(int x, int y) {
+	smouse[snum2].x = x;
+	smouse[snum2].y = y;
+	snum2++;
+}
+
 /*
 ================
 Sys_GetEvent
@@ -333,7 +362,33 @@ static const sysEvent_t res_none = { SE_NONE, 0, 0, 0, NULL };
 sysEvent_t Sys_GetEvent() {
 	sysEvent_t res = { };
 	byte key;
+	
+	if (snum == 0 && snum2 == 0) {
+		Sys_SetKeys();
+		Sys_SetMouse();
+	} else if (snum2 == 0) {
+		snum--;
+		
+		res.evType = SE_KEY;
+		res.evValue = skeys[snum].key;
+		res.evValue2 = skeys[snum].val;
 
+		kbd_polls.Append(kbd_poll_t(skeys[snum].key, skeys[snum].val));
+		
+		return res;
+	} else {
+		snum2--;
+		
+		res.evType = SE_MOUSE;
+		res.evValue = smouse[snum2].x;
+		res.evValue2 = smouse[snum2].y;
+
+		mouse_polls.Append(mouse_poll_t(M_DELTAX, smouse[snum2].x));
+		mouse_polls.Append(mouse_poll_t(M_DELTAY, smouse[snum2].y));
+		
+		return res;
+	}
+	
 	return res_none;
 }
 

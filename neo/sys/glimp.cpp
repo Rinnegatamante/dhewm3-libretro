@@ -25,9 +25,6 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
-
-#include <SDL.h>
-
 #include "sys/platform.h"
 #include "framework/Licensee.h"
 
@@ -38,52 +35,13 @@ If you have questions concerning this license or the applicable additional terms
 #include <SDL_syswm.h>
 #endif
 
+extern int scr_width;
+extern int scr_height;
+
 idCVar in_nograb("in_nograb", "0", CVAR_SYSTEM | CVAR_NOCHEAT, "prevents input grabbing");
 idCVar r_waylandcompat("r_waylandcompat", "0", CVAR_SYSTEM | CVAR_NOCHEAT | CVAR_ARCHIVE, "wayland compatible framebuffer");
 
 static bool grabbed = false;
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-static SDL_Window *window = NULL;
-static SDL_GLContext context = NULL;
-#else
-static SDL_Surface *window = NULL;
-#define SDL_WINDOW_OPENGL SDL_OPENGL
-#define SDL_WINDOW_FULLSCREEN SDL_FULLSCREEN
-#endif
-
-static void SetSDLIcon()
-{
-	Uint32 rmask, gmask, bmask, amask;
-
-	// ok, the following is pretty stupid.. SDL_CreateRGBSurfaceFrom() pretends to use a void* for the data,
-	// but it's really treated as endian-specific Uint32* ...
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	rmask = 0xff000000;
-	gmask = 0x00ff0000;
-	bmask = 0x0000ff00;
-	amask = 0x000000ff;
-#else
-	rmask = 0x000000ff;
-	gmask = 0x0000ff00;
-	bmask = 0x00ff0000;
-	amask = 0xff000000;
-#endif
-
-	#include "doom_icon.h" // contains the struct d3_icon
-
-	SDL_Surface* icon = SDL_CreateRGBSurfaceFrom((void*)d3_icon.pixel_data, d3_icon.width, d3_icon.height,
-			d3_icon.bytes_per_pixel*8, d3_icon.bytes_per_pixel*d3_icon.width,
-			rmask, gmask, bmask, amask);
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_SetWindowIcon(window, icon);
-#else
-	SDL_WM_SetIcon(icon, NULL);
-#endif
-
-	SDL_FreeSurface(icon);
-}
 
 /*
 ===================
@@ -92,14 +50,6 @@ GLimp_Init
 */
 bool GLimp_Init(glimpParms_t parms) {
 	common->Printf("Initializing OpenGL subsystem\n");
-
-	assert(SDL_WasInit(SDL_INIT_VIDEO));
-
-	Uint32 flags = SDL_WINDOW_OPENGL;
-#ifndef __SWITCH__ // to allow upscaling, we don't enable fullscreen
-	if (parms.fullScreen)
-		flags |= SDL_WINDOW_FULLSCREEN;
-#endif
 
 	int colorbits = 24;
 	int depthbits = 24;
@@ -162,120 +112,10 @@ bool GLimp_Init(glimpParms_t parms) {
 		if (tcolorbits == 24)
 			channelcolorbits = 8;
 
-		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, channelcolorbits);
-		SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, channelcolorbits);
-		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, channelcolorbits);
-		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, tdepthbits);
-		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, tstencilbits);
+		glConfig.vidWidth = scr_width;
+		glConfig.vidHeight = scr_height;
 
-		if (r_waylandcompat.GetBool())
-			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
-		else
-			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, channelcolorbits);
-
-		SDL_GL_SetAttribute(SDL_GL_STEREO, parms.stereo ? 1 : 0);
-
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, parms.multiSamples ? 1 : 0);
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, parms.multiSamples);
-
-#ifdef __SWITCH__
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-#endif
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-		window = SDL_CreateWindow(ENGINE_VERSION,
-									SDL_WINDOWPOS_UNDEFINED,
-									SDL_WINDOWPOS_UNDEFINED,
-									parms.width, parms.height, flags);
-
-		if (!window) {
-			common->DPrintf("Couldn't set GL mode %d/%d/%d: %s",
-							channelcolorbits, tdepthbits, tstencilbits, SDL_GetError());
-			continue;
-		}
-
-		context = SDL_GL_CreateContext(window);
-
-		if (SDL_GL_SetSwapInterval(r_swapInterval.GetInteger()) < 0)
-			common->Warning("SDL_GL_SWAP_CONTROL not supported");
-
-		SDL_GetWindowSize(window, &glConfig.vidWidth, &glConfig.vidHeight);
-
-		SetSDLIcon(); // for SDL2  this must be done after creating the window
-
-		glConfig.isFullscreen = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN;
-#else
-		SDL_WM_SetCaption(ENGINE_VERSION, ENGINE_VERSION);
-
-		SetSDLIcon(); // for SDL1.2  this must be done before creating the window
-
-		if (SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, r_swapInterval.GetInteger()) < 0)
-			common->Warning("SDL_GL_SWAP_CONTROL not supported");
-
-		window = SDL_SetVideoMode(parms.width, parms.height, colorbits, flags);
-		if (!window) {
-			common->DPrintf("Couldn't set GL mode %d/%d/%d: %s",
-							channelcolorbits, tdepthbits, tstencilbits, SDL_GetError());
-			continue;
-		}
-
-		glConfig.vidWidth = window->w;
-		glConfig.vidHeight = window->h;
-
-		glConfig.isFullscreen = (window->flags & SDL_FULLSCREEN) == SDL_FULLSCREEN;
-#endif
-
-#if defined(_WIN32) && defined(ID_ALLOW_TOOLS)
-
-#ifndef SDL_VERSION_ATLEAST(2, 0, 0)
-	#error "dhewm3 only supports the tools with SDL2, not SDL1!"
-#endif
-
-		// The tools are Win32 specific.  If building the tools
-		// then we know we are win32 and we have to include this
-		// config to get the editors to work.
-
-		// Get the HWND for later use.
-		SDL_SysWMinfo sdlinfo;
-		SDL_version sdlver;
-		SDL_VERSION(&sdlver);
-		sdlinfo.version = sdlver;
-		if (SDL_GetWindowWMInfo(window, &sdlinfo) && sdlinfo.subsystem == SDL_SYSWM_WINDOWS) {
-			win32.hWnd = sdlinfo.info.win.window;
-			win32.hDC = sdlinfo.info.win.hdc;
-			// NOTE: hInstance is set in main()
-			win32.hGLRC = qwglGetCurrentContext();
-
-			PIXELFORMATDESCRIPTOR src =
-			{
-				sizeof(PIXELFORMATDESCRIPTOR),	// size of this pfd
-				1,								// version number
-				PFD_DRAW_TO_WINDOW |			// support window
-				PFD_SUPPORT_OPENGL |			// support OpenGL
-				PFD_DOUBLEBUFFER,				// double buffered
-				PFD_TYPE_RGBA,					// RGBA type
-				32,								// 32-bit color depth
-				0, 0, 0, 0, 0, 0,				// color bits ignored
-				8,								// 8 bit destination alpha
-				0,								// shift bit ignored
-				0,								// no accumulation buffer
-				0, 0, 0, 0, 					// accum bits ignored
-				24,								// 24-bit z-buffer	
-				8,								// 8-bit stencil buffer
-				0,								// no auxiliary buffer
-				PFD_MAIN_PLANE,					// main layer
-				0,								// reserved
-				0, 0, 0							// layer masks ignored
-			};
-			memcpy(&win32.pfd, &src, sizeof(PIXELFORMATDESCRIPTOR));
-		} else {
-			// TODO: can we just disable them?
-			common->Error("SDL_GetWindowWMInfo(), which is needed for Tools to work, failed!");
-		}		
-#endif // defined(_WIN32) && defined(ID_ALLOW_TOOLS)
+		glConfig.isFullscreen = 1;
 
 		common->Printf("Using %d color bits, %d depth, %d stencil display\n",
 						channelcolorbits, tdepthbits, tstencilbits);
@@ -287,11 +127,6 @@ bool GLimp_Init(glimpParms_t parms) {
 		glConfig.displayFrequency = 0;
 
 		break;
-	}
-
-	if (!window) {
-		common->Warning("No usable GL mode found: %s", SDL_GetError());
-		return false;
 	}
 
 	return true;
@@ -314,18 +149,6 @@ GLimp_Shutdown
 */
 void GLimp_Shutdown() {
 	common->Printf("Shutting down OpenGL subsystem\n");
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	if (context) {
-		SDL_GL_DeleteContext(context);
-		context = NULL;
-	}
-
-	if (window) {
-		SDL_DestroyWindow(window);
-		window = NULL;
-	}
-#endif
 }
 
 /*
@@ -334,11 +157,6 @@ GLimp_SwapBuffers
 ===================
 */
 void GLimp_SwapBuffers() {
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_GL_SwapWindow(window);
-#else
-	SDL_GL_SwapBuffers();
-#endif
 }
 
 /*
@@ -347,17 +165,6 @@ GLimp_SetGamma
 =================
 */
 void GLimp_SetGamma(unsigned short red[256], unsigned short green[256], unsigned short blue[256]) {
-	if (!window) {
-		common->Warning("GLimp_SetGamma called without window");
-		return;
-	}
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	if (SDL_SetWindowGammaRamp(window, red, green, blue))
-#else
-	if (SDL_SetGammaRamp(red, green, blue))
-#endif
-		common->Warning("Couldn't set gamma ramp: %s", SDL_GetError());
 }
 
 /*
@@ -378,40 +185,5 @@ void GLimp_DeactivateContext() {
 	common->DPrintf("TODO: GLimp_DeactivateContext\n");
 }
 
-/*
-===================
-GLimp_ExtensionPointer
-===================
-*/
-GLExtension_t GLimp_ExtensionPointer(const char *name) {
-	assert(SDL_WasInit(SDL_INIT_VIDEO));
-
-	return (GLExtension_t)SDL_GL_GetProcAddress(name);
-}
-
 void GLimp_GrabInput(int flags) {
-	bool grab = flags & GRAB_ENABLE;
-
-	if (grab && (flags & GRAB_REENABLE))
-		grab = false;
-
-	if (flags & GRAB_SETSTATE)
-		grabbed = grab;
-
-	if (in_nograb.GetBool())
-		grab = false;
-
-	if (!window) {
-		common->Warning("GLimp_GrabInput called without window");
-		return;
-	}
-
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
-	SDL_SetRelativeMouseMode((grab && (flags & GRAB_HIDECURSOR)) ? SDL_TRUE : SDL_FALSE);
-	SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE);
-#else
-	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
-	SDL_WM_GrabInput(grab ? SDL_GRAB_ON : SDL_GRAB_OFF);
-#endif
 }

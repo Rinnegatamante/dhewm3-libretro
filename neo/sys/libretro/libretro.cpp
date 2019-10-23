@@ -26,6 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+extern "C"{
 #include "../libretro-common/include/libretro.h"
 #include "../libretro-common/include/retro_dirent.h"
 #include "../libretro-common/include/features/features_cpu.h"
@@ -33,6 +34,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "../libretro-common/include/glsym/glsym.h"
 #include "../libretro-common/include/net/net_compat.h"
 #include "../libretro-common/include/net/net_socket.h"
+};
 
 #include <errno.h>
 #include <unistd.h>

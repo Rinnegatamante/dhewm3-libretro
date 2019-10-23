@@ -510,6 +510,13 @@ void retro_run(void)
 void retro_cheat_reset(void)
 {}
 
+void retro_cheat_set(unsigned index, bool enabled, const char *code)
+{
+   (void)index;
+   (void)enabled;
+   (void)code;
+}
+
 void retro_reset(void)
 {
 }

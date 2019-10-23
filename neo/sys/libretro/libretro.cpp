@@ -503,6 +503,7 @@ void retro_run(void)
 	if (first_boot) {
 		network_init();
 		common->Init( fake_argc, fake_argv );
+		first_boot = false;
 	}
 
 	common->Frame();

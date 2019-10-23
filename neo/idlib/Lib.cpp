@@ -35,8 +35,6 @@ If you have questions concerning this license or the applicable additional terms
 #include <unistd.h>
 #endif
 
-#include <SDL_endian.h>
-
 #include "sys/platform.h"
 #include "idlib/math/Vector.h"
 #include "idlib/math/Polynomial.h"
@@ -45,6 +43,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/Common.h"
 
 #include "idlib/Lib.h"
+
+#include <retro_endianness.h>
 
 /*
 ===============================================================================
@@ -278,7 +278,7 @@ ID_INLINE static float FloatSwap( float f ) {
 	} id_attribute((may_alias)) dat;
 
 	dat.f = f;
-	dat.u = SDL_Swap32(dat.u);
+	dat.u = SWAP32(dat.u);
 
 	return dat.f;
 }
@@ -431,19 +431,19 @@ bool Swap_IsBigEndian( void ) {
 }
 
 short	BigShort( short l ) {
-	return SDL_SwapBE16(l);
+	return swap_if_little16(l);
 }
 
 short	LittleShort( short l ) {
-	return SDL_SwapLE16(l);
+	return swap_if_big16(l);
 }
 
 int		BigInt( int l ) {
-	return SDL_SwapBE32(l);
+	return swap_if_little32(l);
 }
 
 int		LittleInt( int l ) {
-	return SDL_SwapLE32(l);
+	return swap_if_big32(l);
 }
 
 float	BigFloat( float l ) {

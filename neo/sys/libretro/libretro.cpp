@@ -244,7 +244,10 @@ static void extract_directory(char *buf, const char *path, size_t size)
 
 static bool context_needs_reinit = true;
 
-static void context_reset() { 
+static void context_reset() {
+	if (context_needs_reinit)
+		rglgen_resolve_symbols(hw_render.get_proc_address);
+	context_needs_reinit = false;
 }
 
 static void context_destroy() 
@@ -480,9 +483,19 @@ bool retro_load_game(const struct retro_game_info *info)
 	return true;
 }
 
+#include "renderer/tr_local.h"
+/*
+===================
+GLimp_ExtensionPointer
+===================
+*/
+GLExtension_t GLimp_ExtensionPointer(const char *name) {
+	return (GLExtension_t)hw_render.get_proc_address(name);
+}
+
 void retro_run(void)
 {
-	qglBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
+	glBindFramebuffer(RARCH_GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
 	
 	if (first_boot) {
 		network_init();
